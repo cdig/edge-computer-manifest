@@ -1,0 +1,88 @@
+services:
+  display:
+    image: cdigcontainers/edgecomputer-display:v1.0.0
+    build: ./services/display
+    container_name: display
+    restart: unless-stopped
+    network_mode: "host"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      redis:
+        condition: service_healthy  # Waits for the healthcheck to pass
+    develop:
+      watch:
+        - action: sync
+          path: ./services/display
+          target: /app
+          ignore:
+            - node_modules/
+        - action: rebuild
+          path: package.json
+
+  lbs-connect-prod:
+    image: cdigcontainers/edgecomputer-lbs-connect-prod:v1.0.0
+    build:
+      context: ./services/LBSConnect
+      network: host
+    container_name: lbs-connect-prod
+    command: npm run dev:backend
+    profiles:
+      - prod
+    restart: unless-stopped
+    network_mode: "host"
+    privileged: true # Required to dynamically bind serial devices from /dev
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - NODE_ENV=production
+      # Passing the environment variables to the Node process
+      - AVAILABLE_FILES_DIR=/app/Backend/AvailableFiles
+      - AVAILABLE_DATA_DIR=/app/Backend/AvailableData
+      - AVAILABLE_VIEWS_DIR=/app/Backend/AvailableViews
+    devices:
+      - "/dev:/dev" # Exposes physical hardware/serial ports dynamically
+    volumes:
+      - /usr/bin/udevadm:/usr/bin/udevadm:ro
+      - /lib/udev:/lib/udev:ro
+      - /usr/lib/udev:/usr/lib/udev:ro # Added for Raspbian/Debian standard
+      - /etc/udev:/etc/udev:ro         # Added to let udevadm read device rules
+      - /run/udev:/run/udev:ro
+      - /sys:/sys:ro
+      # Mounting local folders to the container paths defined above
+      - ./services/LBSConnect/Backend/AvailableFiles:/app/Backend/AvailableFiles
+      - ./services/LBSConnect/Backend/AvailableData:/app/Backend/AvailableData
+      - ./services/LBSConnect/Backend/AvailableViews:/app/Backend/AvailableViews
+    depends_on:
+      redis:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: sync
+          path: ./services/LBSConnect
+          target: /app
+          ignore:
+            - node_modules/
+            - Backend/AvailableFiles/ # Ignore these to prevent infinite sync loops
+            - Backend/AvailableData/
+            - Backend/AvailableViews/
+            - Backend/Defaults/
+        - action: sync
+          path: vite.config.js
+          target: /app/vite.config.js
+        - action: rebuild
+          path: package.json
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    network_mode: "host"
+    ports:
+      - "6379:6379"
+    command: redis-server --save "" --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 1s
+      retries: 20
