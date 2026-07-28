@@ -27,8 +27,6 @@ services:
       network: host
     container_name: lbs-connect-prod
     command: npm run dev:backend
-    profiles:
-      - prod
     restart: unless-stopped
     network_mode: "host"
     privileged: true # Required to dynamically bind serial devices from /dev
