@@ -1,6 +1,6 @@
 services:
   display:
-    image: cdigcontainers/edgecomputer-display:v1.0.2
+    image: cdigcontainers/edgecomputer-display:v1.1.0
     build: ./services/display
     container_name: display
     restart: unless-stopped
@@ -21,7 +21,7 @@ services:
           path: package.json
 
   lbs-connect-prod:
-    image: cdigcontainers/edgecomputer-lbs-connect-prod:v1.0.2
+    image: cdigcontainers/edgecomputer-lbs-connect-prod:v1.1.0
     build:
       context: ./services/LBSConnect
       network: host
